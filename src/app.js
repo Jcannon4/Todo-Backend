@@ -108,14 +108,19 @@ app.post('/todos', async (req, res) => {
       .status(400)
       .json({ error: 'Missing required fields: list_id and msg.' });
   }
-  const todoOrderValue = 0;
   const isCompleteValue = 0;
   const sql = `
     INSERT INTO todos (list_id, msg, todo_order, isComplete)
     VALUES (?, ?, ?, ?)
   `;
-  const params = [list_id, msg, todoOrderValue, isCompleteValue];
+
   try {
+    const maxOrderStmt = db.prepare(
+      'SELECT MAX(todo_order) AS max_order FROM todos'
+    );
+    const maxResult = maxOrderStmt.get();
+    const nextTodoOrder = (maxResult.max_order || 0) + 1;
+    const params = [list_id, msg, nextTodoOrder, isCompleteValue];
     const stmt = db.prepare(sql);
     const result = stmt.run(params);
 
@@ -124,7 +129,7 @@ app.post('/todos', async (req, res) => {
       todo_id: result.lastInsertRowid,
       list_id,
       msg,
-      todoOrderValue,
+      todo_order: nextTodoOrder,
       isCompleteValue,
     });
   } catch (error) {
