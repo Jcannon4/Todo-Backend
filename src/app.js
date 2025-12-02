@@ -18,7 +18,7 @@ app.get('/', (req, res) => {
   res.send('SQLite + Express Backend Running!');
 });
 
-// GET one todo
+// GET Single Todo
 app.get('/todos/:todo_id', (req, res) => {
   const stmt = db.prepare('SELECT * FROM todos WHERE id = ?');
   const todo = stmt.get(req.params.id);
@@ -29,6 +29,7 @@ app.get('/todos/:todo_id', (req, res) => {
   res.json(todo);
 });
 
+// Insert Many Lists
 app.post('/lists', (req, res) => {
   const { lists } = req.body;
 
@@ -75,6 +76,7 @@ app.post('/lists', (req, res) => {
   }
 });
 
+// Get All Lists
 app.get('/lists', (req, res) => {
   const stmt = db.prepare('SELECT * FROM lists');
   const lists = stmt.all();
@@ -88,7 +90,7 @@ app.get('/todos', (req, res) => {
   res.json(todos);
 });
 
-// INSERT INTO todos TABLE
+// INSERT MANY todos
 app.post('/todos', async (req, res) => {
   const { list_id, msg, tempId } = req.body;
   if (!list_id || !msg) {
@@ -217,27 +219,31 @@ app.patch('/lists/:listID', requireBodyField('title'), (req, res, next) => {
   }
 });
 
-// Edit Todos
-app.patch('/todos/:todoID', requireBodyField('msg'), (req, res, next) => {
-  const { todoID } = req.params;
-  const { msg } = req.body;
+// UPDATE  todo.isComplete
+app.patch(
+  '/todos/:todoID',
+  requireBodyField('isComplete'),
+  (req, res, next) => {
+    const { todoID } = req.params;
+    const { isComplete } = req.body;
 
-  try {
-    const result = updateById({
-      table: 'todos',
-      idColumn: 'todo_id',
-      idValue: todoID,
-      field: 'msg',
-      value: msg,
-    });
+    try {
+      const result = updateById({
+        table: 'todos',
+        idColumn: 'todo_id',
+        idValue: todoID,
+        field: 'isComplete',
+        value: isComplete,
+      });
 
-    if (handleNotFound(res, result.changes, 'Todo', todoID)) return;
+      if (handleNotFound(res, result.changes, 'Todo', todoID)) return;
 
-    res.status(200).json({ todo_id: Number(todoID), msg });
-  } catch (err) {
-    next(err);
+      res.status(200).json({ todo_id: Number(todoID), msg });
+    } catch (err) {
+      next(err);
+    }
   }
-});
+);
 
 // Handle Move list order
 
@@ -270,14 +276,14 @@ function runDelete(id, tableName, idType) {
     res.status(500).json({ error: 'Failed to delete todo item.' });
   }
 }
-// Delete List via its id (consequently all of its todos)
+// DELETE List via its id (consequently all of its todos)
 app.delete('/lists/:listID', (req, res) => {
   const listID = req.params.listID;
   listID = Number(listID);
   return runDelete(listID, 'lists', 'list_id');
 });
 
-// Delete Todo vis its id
+// DELETE Todo via its id
 app.delete('/todos/:todoID', (req, res) => {
   const todoID = req.params.todoID;
   Number(todoID);
