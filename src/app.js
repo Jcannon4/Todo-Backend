@@ -76,6 +76,20 @@ app.post('/lists', (req, res) => {
   }
 });
 
+// Get All Data
+app.get('/data/all', (req, res) => {
+  try {
+    const listStmt = db.prepare('SELECT * FROM lists ORDER BY list_order ASC');
+    const lists = listStmt.all();
+    const todoStmt = db.prepare('SELECT * FROM todos ORDER BY todo_order ASC');
+    const todos = todoStmt.all();
+    res.json({ lists, todos });
+  } catch (err) {
+    console.error('Database error getting all data:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 // Get All Lists
 app.get('/lists', (req, res) => {
   const stmt = db.prepare('SELECT * FROM lists');
@@ -92,49 +106,55 @@ app.get('/todos', (req, res) => {
 
 // INSERT MANY todos
 app.post('/todos', async (req, res) => {
-  const { list_id, msg, tempId } = req.body;
-  if (!list_id || !msg) {
-    return res
-      .status(400)
-      .json({ error: 'Missing required fields: list_id and msg.' });
+  const { todos, listID } = req.body;
+  let parentID = Number(listID);
+
+  if (!Array.isArray(todos) || todos.length === 0) {
+    return res.status(400).json({ error: 'Todos must be a non-empty array.' });
   }
   const isCompleteValue = 0;
-  const sql = `
-    INSERT INTO todos (list_id, msg, todo_order, isComplete)
-    VALUES (?, ?, ?, ?)
-  `;
 
   try {
-    const maxOrderStmt = db.prepare(
-      'SELECT MAX(todo_order) AS max_order FROM todos'
+    const insertStmt = db.prepare(
+      'INSERT INTO todos (list_id, msg, todo_order, isComplete) VALUES (?, ?, ?, ?)'
     );
-    const maxResult = maxOrderStmt.get();
-    const nextTodoOrder = (maxResult.max_order || 0) + 1;
-    const params = [list_id, msg, nextTodoOrder, isCompleteValue];
-    const stmt = db.prepare(sql);
-    const result = stmt.run(params);
 
-    // 4. Send Success Response (HTTP 201 Created)
-    res.status(201).json({
-      todo_id: result.lastInsertRowid,
-      list_id,
-      msg,
-      todo_order: nextTodoOrder,
-      isCompleteValue,
-      tempId, // Front-End Id Reconciliation
+    const getMaxOrder = db.prepare('SELECT MAX(todo_order) as max FROM todos');
+
+    const insertMany = db.transaction((todos) => {
+      // Return type to front end to enable id reconciliation
+      const mappings = [];
+
+      let { max } = getMaxOrder.get();
+      let nextOrder = (max || 0) + 1;
+
+      for (const todo of todos) {
+        // Data to insert into table
+        const result = insertStmt.run(
+          parentID, // Incoming from req
+          todo.msg, // incoming reqeust body
+          nextOrder, // Calculated form current table
+          isCompleteValue // Should default be false, grab from incoming req body
+        );
+        // Create array to feed back to frontend for its optimistic ID update
+        mappings.push({
+          tempId: todo.todoId, // Echo back the uuid temp id
+          realId: result.lastInsertRowid, // The calculated unique ID or Primary Key. will. update reducer to this value
+          parentID: parentID, // list id, so that we can query the proper list in our reducer
+          todo_order: nextOrder, // Calculated Order number
+        });
+
+        nextOrder++;
+      }
+
+      return mappings;
     });
-  } catch (error) {
-    console.error('Database insertion error:', error);
 
-    // Check for specific Foreign Key Constraint error (list_id not found)
-    if (error.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
-      return res
-        .status(404)
-        .json({ error: `List with ID '${list_id}' not found.` });
-    }
-
-    // Send generic server error response
-    res.status(500).json({ error: 'Failed to create todo item.' });
+    const response = insertMany(todos); // Call insertion function
+    return res.status(201).json(response); // Return response to front end
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: err.message });
   }
 });
 /**
@@ -246,6 +266,38 @@ app.patch(
 );
 
 // Handle Move list order
+app.put('/lists/reorder', (req, res) => {
+  const { order } = req.body; // Expecting an array of list IDs, e.g., ["3", "1", "2"]
+
+  if (!Array.isArray(order) || order.length === 0) {
+    return res
+      .status(400)
+      .json({ error: 'order must be a non-empty array of list IDs.' });
+  }
+
+  try {
+    const updateStmt = db.prepare(
+      'UPDATE lists SET list_order = ? WHERE list_id = ?'
+    );
+
+    // Use a transaction to ensure all updates succeed or fail together
+    const reorderTransaction = db.transaction((listIds) => {
+      for (let i = 0; i < listIds.length; i++) {
+        const newOrder = i + 1; // list_order is 1-based
+        const listId = listIds[i];
+        updateStmt.run(newOrder, listId);
+      }
+    });
+
+    // Execute the transaction
+    reorderTransaction(order);
+
+    res.status(200).json({ success: true, message: 'List order updated.' });
+  } catch (err) {
+    console.error('Database reorder error:', err.message);
+    res.status(500).json({ error: 'Failed to reorder lists.' });
+  }
+});
 
 // Handle Move todo order
 
