@@ -310,7 +310,7 @@ app.put('/lists/reorder', (req, res) => {
  * @param idType : either todo_id or list_id. Tells SQLite what parameter we want to query for.
  */
 
-function runDelete(id, tableName, idType) {
+function runDelete(id, tableName, idType, res) {
   try {
     const stmt = db.prepare(`DELETE FROM ${tableName} WHERE ${idType} = ?`);
     const result = stmt.run(id); // synchronous
@@ -330,16 +330,16 @@ function runDelete(id, tableName, idType) {
 }
 // DELETE List via its id (consequently all of its todos)
 app.delete('/lists/:listID', (req, res) => {
-  const listID = req.params.listID;
+  let listID = req.params.listID;
   listID = Number(listID);
-  return runDelete(listID, 'lists', 'list_id');
+  return runDelete(listID, 'lists', 'list_id', res);
 });
 
 // DELETE Todo via its id
 app.delete('/todos/:todoID', (req, res) => {
   const todoID = req.params.todoID;
   Number(todoID);
-  return runDelete(todoID, 'todos', 'todo_id');
+  return runDelete(todoID, 'todos', 'todo_id', res);
 });
 
 // START SERVER -----------------------
