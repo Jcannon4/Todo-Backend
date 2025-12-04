@@ -321,8 +321,8 @@ function runDelete(id, tableName, idType, res) {
       });
     }
 
-    // 204 No Content for successful delete
-    res.status(204).end();
+    // return staus message for frontend to process
+    return res.status(204);
   } catch (err) {
     console.error('Database deletion error:', err.message);
     res.status(500).json({ error: 'Failed to delete todo item.' });
