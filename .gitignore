@@ -11,3 +11,5 @@ npm-debug.*
 # distribution
 dist/
 *.db
+
+.DS_Store
