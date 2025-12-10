@@ -191,7 +191,7 @@ function updateById({ table, idColumn, idValue, field, value }) {
 function requireBodyField(fieldName) {
   return (req, res, next) => {
     const value = req.body[fieldName];
-    if (!value) {
+    if (value == undefined) {
       return res.status(400).json({
         error: `Missing required field: ${fieldName}.`,
       });
@@ -240,30 +240,27 @@ app.patch('/lists/:listID', requireBodyField('title'), (req, res, next) => {
 });
 
 // UPDATE  todo.isComplete
-app.patch(
-  '/todos/:todoID',
-  requireBodyField('isComplete'),
-  (req, res, next) => {
-    const { todoID } = req.params;
-    const { isComplete } = req.body;
+app.patch('/todos/:todoID', requireBodyField('boolValue'), (req, res, next) => {
+  let todoID = req.params.todoID;
+  todoID = Number(todoID);
+  const { boolValue } = req.body;
 
-    try {
-      const result = updateById({
-        table: 'todos',
-        idColumn: 'todo_id',
-        idValue: todoID,
-        field: 'isComplete',
-        value: isComplete,
-      });
+  try {
+    const result = updateById({
+      table: 'todos',
+      idColumn: 'todo_id',
+      idValue: todoID,
+      field: 'isComplete',
+      value: boolValue,
+    });
 
-      if (handleNotFound(res, result.changes, 'Todo', todoID)) return;
+    if (handleNotFound(res, result.changes, 'Todo', todoID)) return;
 
-      res.status(200).json({ todo_id: Number(todoID), msg });
-    } catch (err) {
-      next(err);
-    }
+    res.status(200).json({ todo_id: Number(todoID), boolValue });
+  } catch (err) {
+    next(err);
   }
-);
+});
 
 // Handle Move list order
 app.put('/lists/reorder', (req, res) => {

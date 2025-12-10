@@ -20,3 +20,6 @@ DROP TABLE IF EXISTS lists;
 
 TO debug: run "node src/app.js"
 then go to "Attach by Processs ID"
+
+Build todo-backend executable
+npx pkg .

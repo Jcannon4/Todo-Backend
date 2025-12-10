@@ -8,5 +8,6 @@ package-lock.json
 # debug
 npm-debug.*
 
-
+# distribution
+dist/
 *.db

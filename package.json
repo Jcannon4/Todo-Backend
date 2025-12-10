@@ -14,7 +14,8 @@
     "better-sqlite3": "^12.4.1",
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "morgan": "^1.10.1"
+    "morgan": "^1.10.1",
+    "pkg": "^5.8.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
@@ -22,5 +23,14 @@
     "@types/node": "^24.10.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "bin": "src/app.js",
+  "pkg": {
+    "scripts": "build/**/*.js",
+    "assets": "views/**/*",
+    "targets": [
+      "node18-macos-x64"
+    ],
+    "outputPath": "dist"
   }
 }
